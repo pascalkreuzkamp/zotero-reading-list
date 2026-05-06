@@ -61,6 +61,7 @@ export const ENABLE_KEYBOARD_SHORTCUTS_PREF = "enable-keyboard-shortcuts";
 export const STATUS_NAME_AND_ICON_LIST_PREF = "statuses-and-icons-list";
 export const STATUS_CHANGE_ON_OPEN_ITEM_LIST_PREF =
 	"status-change-on-open-item-list";
+export const BOARD_STATUS_LIST_PREF = "reading-board-status-list";
 
 enum ReadStatusFormat {
 	ShowBoth = 0,
@@ -329,12 +330,46 @@ function sortBoardItems(items: Zotero.Item[]) {
 	});
 }
 
+function prefStringToStringList(prefString: string) {
+	return prefString ? prefString.split(";").filter(Boolean) : [];
+}
+
+function stringListToPrefString(stringList: string[]) {
+	return stringList.join(";");
+}
+
+function getBoardStatusNames(statusNames: string[]) {
+	const pref = getPref(BOARD_STATUS_LIST_PREF);
+	if (typeof pref != "string") {
+		return statusNames;
+	}
+	const savedStatusNames = prefStringToStringList(pref);
+	return savedStatusNames.filter((statusName) =>
+		statusNames.includes(statusName),
+	);
+}
+
 function getDirectChild(parent: Element, child: Element) {
 	let current: Element | null = child;
 	while (current && current.parentNode != parent) {
 		current = current.parentElement;
 	}
 	return current;
+}
+
+async function openItemBestAttachment(item: Zotero.Item) {
+	const attachment = item.isPDFAttachment()
+		? item
+		: ((await item.getBestAttachments()).find((attachment) =>
+				attachment.isPDFAttachment(),
+			) ?? (await item.getBestAttachment()));
+
+	if (attachment) {
+		await Zotero.FileHandlers.open(attachment);
+		return;
+	}
+
+	getActiveZoteroPane().selectItem(item.id);
 }
 
 export default class ZoteroReadingList {
@@ -430,6 +465,13 @@ export default class ZoteroReadingList {
 				defaultStatusPref,
 			);
 		}
+		const [currentStatusNames] = prefStringToList(
+			getPref(STATUS_NAME_AND_ICON_LIST_PREF)! as string,
+		);
+		initialiseDefaultPref(
+			BOARD_STATUS_LIST_PREF,
+			stringListToPrefString(currentStatusNames),
+		);
 		initialiseDefaultPref(
 			STATUS_CHANGE_ON_OPEN_ITEM_LIST_PREF,
 			listToPrefString(
@@ -527,6 +569,13 @@ export default class ZoteroReadingList {
 					this.addKeyboardShortcutListener();
 					this.removeReadStatusColumn();
 					this.addReadStatusColumn();
+					this.renderReadingBoard();
+				},
+				true,
+			),
+			Zotero.Prefs.registerObserver(
+				getPrefGlobalName(BOARD_STATUS_LIST_PREF),
+				(value: string) => {
 					this.renderReadingBoard();
 				},
 				true,
@@ -778,7 +827,9 @@ export default class ZoteroReadingList {
 				? document.createElementNS(XUL_NS, "toolbarbutton")
 				: document.createElement("button");
 		button.id = READING_BOARD_BUTTON_ID;
-		button.textContent = getString("reading-board-button");
+		if (button.namespaceURI != XUL_NS) {
+			button.textContent = getString("reading-board-button");
+		}
 		button.setAttribute("label", getString("reading-board-button"));
 		button.setAttribute("tooltiptext", getString("reading-board-button"));
 		button.setAttribute("type", "button");
@@ -899,16 +950,18 @@ export default class ZoteroReadingList {
 			(statusName) =>
 				statusName && !this.statusNames.includes(statusName),
 		);
+		const boardStatusNames = getBoardStatusNames(this.statusNames);
 		const laneStatuses = [NO_STATUS].concat(
-			this.statusNames,
+			boardStatusNames,
 			unknownStatuses,
 		);
-		for (const statusName of laneStatuses) {
+		for (const [laneIndex, statusName] of laneStatuses.entries()) {
 			this.renderReadingBoardLane(
 				boardDocument,
 				board,
 				statusName,
 				items,
+				laneIndex,
 			);
 		}
 	}
@@ -918,12 +971,26 @@ export default class ZoteroReadingList {
 		board: HTMLElement,
 		statusName: string,
 		items: Zotero.Item[],
+		laneIndex: number,
 	) {
 		const lane = boardDocument.createElement("section");
 		lane.className = statusName
 			? "reading-board-lane"
 			: "reading-board-lane no-status";
 		lane.dataset.statusName = statusName;
+		lane.style.setProperty(
+			"--lane-color",
+			[
+				"#4da3ff",
+				"#f7c948",
+				"#4fd1a5",
+				"#b48cff",
+				"#ff9f43",
+				"#ff6b8a",
+				"#7bd88f",
+				"#8aa4ff",
+			][laneIndex % 8],
+		);
 		lane.addEventListener("dragover", (event) => {
 			event.preventDefault();
 		});
@@ -949,7 +1016,7 @@ export default class ZoteroReadingList {
 
 		const title = boardDocument.createElement("h2");
 		title.textContent = statusName
-			? this.formatStatusName(statusName)
+			? statusName
 			: getString("reading-board-no-status");
 		header.append(title);
 
@@ -976,6 +1043,9 @@ export default class ZoteroReadingList {
 		card.draggable = true;
 		card.addEventListener("dragstart", (event) => {
 			event.dataTransfer?.setData("text/plain", String(item.id));
+		});
+		card.addEventListener("dblclick", () => {
+			void openItemBestAttachment(item);
 		});
 
 		const title = boardDocument.createElement("h3");
@@ -1106,16 +1176,17 @@ export default class ZoteroReadingList {
 			}
 			.reading-board-lane {
 				display: flex;
-				flex: 0 0 260px;
+				flex: 0 0 220px;
 				flex-direction: column;
 				max-height: calc(100vh - 148px);
 				border: 1px solid var(--rb-border);
 				border-radius: 8px;
 				background: var(--rb-surface-2);
 				overflow: hidden;
+				border-top: 3px solid var(--lane-color);
 			}
 			.reading-board-lane.no-status {
-				flex-basis: 210px;
+				flex-basis: 190px;
 			}
 			.reading-board-lane-header {
 				display: flex;
@@ -1147,7 +1218,7 @@ export default class ZoteroReadingList {
 				padding: 8px;
 			}
 			.reading-board-card {
-				padding: 11px;
+				padding: 9px;
 				border: 1px solid var(--rb-border);
 				border-radius: 8px;
 				background: var(--rb-surface);
@@ -1162,7 +1233,7 @@ export default class ZoteroReadingList {
 			}
 			.reading-board-card h3 {
 				margin: 0;
-				font-size: 13px;
+				font-size: 12px;
 				line-height: 1.3;
 				font-weight: 600;
 			}
@@ -1177,12 +1248,12 @@ export default class ZoteroReadingList {
 				align-items: center;
 				justify-content: space-between;
 				gap: 8px;
-				margin-top: 10px;
+				margin-top: 8px;
 				color: var(--rb-muted);
 				font-size: 12px;
 			}
 			.reading-board-priority select {
-				min-width: 64px;
+				min-width: 56px;
 				border: 1px solid var(--rb-border);
 				border-radius: 6px;
 				background: var(--rb-surface-3);

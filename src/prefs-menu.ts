@@ -9,6 +9,7 @@ import {
 	FORBIDDEN_PREF_STRING_CHARACTERS,
 	LABEL_NEW_ITEMS_PREF,
 	LABEL_NEW_ITEMS_PREF_DISABLED,
+	BOARD_STATUS_LIST_PREF,
 	prefStringToList,
 	listToPrefString,
 } from "./modules/overlay";
@@ -21,14 +22,18 @@ const OPEN_ITEM_HIDDEN_ROW = "openitem-table-hidden-row";
 const OPEN_ITEM_CHECKBOX =
 	"zotero-prefpane-zotero-reading-list-label-items-when-opening-file";
 const LABEL_NEW_ITEMS_MENU_LIST = "automatically-label-new-items-menulist";
+const BOARD_STATUS_TABLE_BODY = "boardstatus-table-body";
 
 function onPrefsLoad(window: Window) {
 	setTableStatusNames(window);
+	setTableBoardStatusNames(window);
 	setTableOpenItem(window);
 	fillAutomaticallyLabelNewItemsMenuList(window);
 }
 
 function resetPrefsMenu(window: Window) {
+	clearTableBoardStatusNames(window);
+	setTableBoardStatusNames(window);
 	clearTableOpenItem(window);
 	setTableOpenItem(window);
 	clearAutomaticallyLabelNewItemsMenuList(window);
@@ -93,6 +98,44 @@ function resetTableStatusNames(window: Window) {
 	setTableStatusNames(window);
 	// if we change the statuses, need to reset the status lists here
 	resetPrefsMenu(window);
+}
+
+function setTableBoardStatusNames(window: Window) {
+	const tableBody = window.document.getElementById(BOARD_STATUS_TABLE_BODY);
+	for (const row of createTableRowsBoardStatusNames(window)) {
+		tableBody?.append(row);
+	}
+}
+
+function clearTableBoardStatusNames(window: Window) {
+	const tableRows = window.document.getElementById(
+		BOARD_STATUS_TABLE_BODY,
+	)?.children;
+	Array.from(tableRows ?? []).map((row) => row.remove());
+}
+
+function resetTableBoardStatusNames(window: Window) {
+	const [statusNames] = prefStringToList(
+		getPref(STATUS_NAME_AND_ICON_LIST_PREF) as string,
+	);
+	setPref(BOARD_STATUS_LIST_PREF, statusNames.join(";"));
+	clearTableBoardStatusNames(window);
+	setTableBoardStatusNames(window);
+}
+
+function saveTableBoardStatusNames(window: Window) {
+	const tableRows = window.document.getElementById(
+		BOARD_STATUS_TABLE_BODY,
+	)?.children;
+	const shownStatuses: string[] = [];
+	for (const row of tableRows ?? []) {
+		const checkbox = row.children[0].firstChild as HTMLInputElement;
+		const statusName = row.children[1].textContent;
+		if (checkbox.checked && statusName) {
+			shownStatuses.push(statusName);
+		}
+	}
+	setPref(BOARD_STATUS_LIST_PREF, shownStatuses.join(";"));
 }
 
 function resetTableOpenItem(window: Window) {
@@ -290,6 +333,41 @@ function createTableRowsOpenItem(window: Window) {
 	);
 }
 
+function createTableRowsBoardStatusNames(window: Window) {
+	const [statusNames] = prefStringToList(
+		getPref(STATUS_NAME_AND_ICON_LIST_PREF) as string,
+	);
+	const shownStatuses = new Set(
+		String(getPref(BOARD_STATUS_LIST_PREF) ?? "")
+			.split(";")
+			.filter(Boolean),
+	);
+	return statusNames.map((statusName) =>
+		createTableRowBoardStatusName(window, statusName, shownStatuses),
+	);
+}
+
+function createTableRowBoardStatusName(
+	window: Window,
+	statusName: string,
+	shownStatuses: Set<string>,
+) {
+	const row = createElement("html:tr");
+
+	const checkboxCell = createElement("html:td");
+	const checkbox = createElement("html:input") as HTMLInputElement;
+	checkbox.type = "checkbox";
+	checkbox.checked = shownStatuses.has(statusName);
+	checkboxCell.append(checkbox);
+
+	const nameCell = createElement("html:td");
+	nameCell.textContent = statusName;
+
+	row.append(checkboxCell);
+	row.append(nameCell);
+	return row;
+}
+
 function createTableRowStatusNames(window: Window, icon: string, name: string) {
 	const row = createElement("html:tr");
 
@@ -406,6 +484,8 @@ export default {
 	addTableRowStatusNames,
 	resetTableStatusNames,
 	saveTableStatusNames,
+	resetTableBoardStatusNames,
+	saveTableBoardStatusNames,
 	addTableRowOpenItem,
 	resetTableOpenItem,
 	saveTableOpenItem,

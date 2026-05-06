@@ -26,6 +26,12 @@ pref-statuslabeltable-button-add = Add New Status
 pref-statuslabeltable-button-save = Save
 pref-statuslabeltable-button-reset = Reset to Default
 
+pref-boardstatus-title = Kanban Board Statuses
+pref-boardstatus-header-show = Show
+pref-boardstatus-header-statusname = Status Name
+pref-boardstatus-button-save = Save
+pref-boardstatus-button-reset = Show All
+
 pref-openitemtable-title = Custom Status Changes When Opening Item
 pref-openitemtable-header-statusfrom = Status From
 pref-openitemtable-header-statusto = Status To

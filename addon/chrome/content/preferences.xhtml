@@ -53,6 +53,28 @@
 		</html:table>
 	</groupbox>
 
+	<!-- Board statuses -->
+	<groupbox>
+		<label>
+			<html:h2 data-l10n-id="pref-boardstatus-title"></html:h2>
+		</label>
+		<html:table>
+			<html:thead>
+				<html:tr>
+					<html:th data-l10n-id="pref-boardstatus-header-show"></html:th>
+					<html:th data-l10n-id="pref-boardstatus-header-statusname"></html:th>
+				</html:tr>
+			</html:thead>
+			<html:tbody id="boardstatus-table-body"> </html:tbody>
+			<html:button id="boardstatus-save-button"
+				onclick="Zotero.__addonInstance__.prefsMenu.saveTableBoardStatusNames(window)"
+				data-l10n-id="pref-boardstatus-button-save" />
+			<html:button id="boardstatus-reset-button"
+				onclick="Zotero.__addonInstance__.prefsMenu.resetTableBoardStatusNames(window)"
+				data-l10n-id="pref-boardstatus-button-reset" />
+		</html:table>
+	</groupbox>
+
 	<!-- Auto change statuses when opening items -->
 	<groupbox>
 		<label>
