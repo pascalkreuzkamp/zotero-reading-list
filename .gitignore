@@ -9,3 +9,7 @@ yarn.lock
 debug.log
 .env
 .scaffold
+
+.dev/
+.codex/
+AGENTS.md

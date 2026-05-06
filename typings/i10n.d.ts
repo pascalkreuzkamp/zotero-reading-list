@@ -4,6 +4,7 @@
 // @ts-nocheck
 export type FluentMessageId =
   | 'autolabelnewitems-disabled'
+  | 'board-untitled'
   | 'duplicate-status-names-description'
   | 'duplicate-status-names-title'
   | 'invalid-status-names-description'
@@ -36,10 +37,18 @@ export type FluentMessageId =
   | 'pref-statuslabeltable-title'
   | 'pref-title'
   | 'prefs-title'
+  | 'priority'
+  | 'priority-none'
   | 'read-status'
-  | 'status-in_progress'
+  | 'reading-board-button'
+  | 'reading-board-no-status'
+  | 'reading-board-refresh'
+  | 'reading-board-title'
   | 'status-new'
   | 'status-none'
-  | 'status-not_reading'
+  | 'status-queued'
   | 'status-read'
-  | 'status-to_read';
+  | 'status-reading'
+  | 'status-skimmed'
+  | 'status-to_read'
+  | 'status-to_summarize';
