@@ -14,6 +14,7 @@ export default tseslint.config(
 			"**/node_modules/**/*",
 			"**/scripts/**/*",
 			"**/*.js",
+			"**/*.cjs",
 			"**/*.bak",
 			"**/zotero-plugin.config.ts",
 			"**/eslint.config.mjs",

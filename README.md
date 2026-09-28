@@ -1,6 +1,6 @@
-# Zotero Reading List
+# Zotero Reading List+
 
-![downloads](<https://img.shields.io/github/downloads/dominic-dallosto/zotero-reading-list/latest/zotero-reading-list.xpi?style=flat-square&label=Downloads%20(latest%20version)>)
+![downloads](<https://img.shields.io/github/downloads/pascalleuthner/zotero-reading-list/latest/zotero-reading-list.xpi?style=flat-square&label=Downloads%20(latest%20version)>)
 
 An extension for Zotero that allows setting the read status of items.
 
@@ -19,17 +19,22 @@ You can also remove an item's read status through the right click menu or with t
 
 ## Installation
 
-| Zotero version | Extension version to use                                                              |
-| -------------- | ------------------------------------------------------------------------------------- |
-| 6              | [v0.3.2](https://github.com/Dominic-DallOsto/zotero-reading-list/releases/tag/v0.3.2) |
-| 7.0            | [v1.5.8](https://github.com/Dominic-DallOsto/zotero-reading-list/releases/tag/v1.5.8) |
-| 7.1 / 8.0      | [Latest](https://github.com/Dominic-DallOsto/zotero-reading-list/releases/latest)     |
+| Zotero version | Extension version to use                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| 6              | [Upstream v0.3.2](https://github.com/Dominic-DallOsto/zotero-reading-list/releases/tag/v0.3.2) |
+| 7.0            | [Upstream v1.5.8](https://github.com/Dominic-DallOsto/zotero-reading-list/releases/tag/v1.5.8) |
+| 7.1 - 9        | [Latest upstream](https://github.com/Dominic-DallOsto/zotero-reading-list/releases/latest)     |
+| 10             | [Latest Reading List+](https://github.com/pascalleuthner/zotero-reading-list/releases/latest)  |
 
 1. Download the latest release based on your Zotero version from the table above
 2. Save the .xpi file (in Firefox, Right click -> Save Link As)
 3. Install in Zotero (Tools -> Plugins -> Gear icon in the top right -> Install Plugin From File -> Select the .xpi file you downloaded)
 4. Restart Zotero to ensure proper initialisation of the Plugin
 5. Right click on the item pane column header and enable the Read Status column (see below)
+
+Reading List+ has its own add-on identity and update feed. Disable or uninstall the
+upstream Reading List add-on before installing this fork so that both do not manage
+the same item metadata. Existing preferences are copied automatically on first run.
 
 ![image](https://github.com/Dominic-DallOsto/zotero-reading-list/assets/26859884/e0dcc5b3-ffee-4120-96c8-81e6903d30b7)
 

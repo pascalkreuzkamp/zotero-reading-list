@@ -5,10 +5,12 @@
 export type FluentMessageId =
   | 'autolabelnewitems-disabled'
   | 'board-untitled'
+  | 'copy-item-link'
   | 'duplicate-status-names-description'
   | 'duplicate-status-names-title'
   | 'invalid-status-names-description'
   | 'invalid-status-names-title'
+  | 'item-key'
   | 'menupopup-label'
   | 'pref-autolabelnewitems-title'
   | 'pref-boardstatus-button-reset'

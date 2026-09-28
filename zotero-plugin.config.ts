@@ -8,9 +8,7 @@ export default defineConfig({
 	name: pkg.config.addonName,
 	id: pkg.config.addonID,
 	namespace: pkg.config.addonRef,
-	updateURL: `https://github.com/{{owner}}/{{repo}}/releases/download/release/${
-		pkg.version.includes("-") ? "update-beta.json" : "update.json"
-	}`,
+	updateURL: pkg.config.updateJSON,
 	xpiDownloadLink:
 		"https://github.com/{{owner}}/{{repo}}/releases/download/v{{version}}/{{xpiName}}.xpi",
 

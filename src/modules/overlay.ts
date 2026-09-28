@@ -15,10 +15,12 @@ import {
 	clearItemExtraProperty,
 	removeFieldValueFromExtraData,
 } from "../utils/extraField";
+import { getCurrentViewItems as resolveCurrentViewItems } from "../utils/currentViewItems";
 const READ_STATUS_COLUMN_ID = "readstatus";
 const READ_PRIORITY_COLUMN_ID = "readpriority";
-const READING_BOARD_BUTTON_ID = "zotero-reading-list-board-button";
-const READING_BOARD_MENU_ID = "zotero-reading-list-board-menu";
+const ITEM_KEY_COLUMN_ID = "itemkey";
+const READING_BOARD_BUTTON_ID = `${config.addonRef}-board-button`;
+const READING_BOARD_MENU_ID = `${config.addonRef}-board-menu`;
 const READ_STATUS_EXTRA_FIELD = "Read_Status";
 const READ_DATE_EXTRA_FIELD = "Read_Status_Date";
 const READ_PRIORITY_EXTRA_FIELD = "Read_Priority";
@@ -133,6 +135,34 @@ function clearSelectedItemsReadStatus() {
 	}
 }
 
+async function getItemPDF(item: Zotero.Item) {
+	if (item.isPDFAttachment()) {
+		return item;
+	}
+	return (await item.getBestAttachments()).find((attachment) =>
+		attachment.isPDFAttachment(),
+	);
+}
+
+function getItemMarkdownLink(pdf: Zotero.Item, item: Zotero.Item) {
+	const doi = item.getField("DOI");
+	const label = doi ? String(doi) : "Link";
+	return `[${label}](zotero://open-pdf/library/items/${pdf.key})`;
+}
+
+async function copySelectedItemLinks() {
+	const links: string[] = [];
+	for (const item of getSelectedItems()) {
+		const pdf = await getItemPDF(item);
+		if (pdf) {
+			links.push(getItemMarkdownLink(pdf, item));
+		}
+	}
+	if (links.length) {
+		Zotero.Utilities.Internal.copyTextToClipboard(links.join("\n"));
+	}
+}
+
 /**
  * Return selected regular items
  */
@@ -175,119 +205,12 @@ function getActiveZoteroPane() {
 	return zotero.getActiveZoteroPane?.() ?? ZoteroPane;
 }
 
-function getRegularItems(items: Zotero.Item[]) {
-	return items.filter((item) => item?.isRegularItem());
-}
-
-function normalizeItems(itemsOrIDs: Zotero.Item[] | number[]): Zotero.Item[] {
-	if (!itemsOrIDs.length) {
-		return [];
-	}
-	if (typeof itemsOrIDs[0] == "number") {
-		const itemIDs: number[] = [];
-		for (const itemID of itemsOrIDs) {
-			if (typeof itemID == "number") {
-				itemIDs.push(itemID);
-			}
-		}
-		return Zotero.Items.get(itemIDs);
-	}
-	const items: Zotero.Item[] = [];
-	for (const item of itemsOrIDs) {
-		if (typeof item != "number") {
-			items.push(item);
-		}
-	}
-	return items;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-	return typeof value == "object" && value != null;
-}
-
-function hasRegularItemMethod(
-	value: unknown,
-): value is Zotero.Item & { isRegularItem: () => boolean } {
-	return isObject(value) && typeof value.isRegularItem == "function";
-}
-
-function isRegularZoteroItem(value: unknown): value is Zotero.Item {
-	return hasRegularItemMethod(value) && value.isRegularItem();
-}
-
-function getItemFromID(id: number): Zotero.Item {
-	return Zotero.Items.get(id);
-}
-
-function getItemFromViewRow(row: unknown) {
-	if (!row) {
-		return undefined;
-	}
-	if (isRegularZoteroItem(row)) {
-		return row;
-	}
-	if (!isObject(row)) {
-		return undefined;
-	}
-	if (isRegularZoteroItem(row.ref)) {
-		return row.ref;
-	}
-	if (typeof row.id == "number") {
-		return getItemFromID(row.id);
-	}
-	if (typeof row.itemID == "number") {
-		return getItemFromID(row.itemID);
-	}
-	return undefined;
-}
-
 function getCurrentViewItems() {
-	const pane = getActiveZoteroPane() as _ZoteroTypes.ZoteroPane & {
-		getSortedItems?: () => Zotero.Item[] | number[];
-		itemsView?: {
-			rowCount?: number;
-			_rowCount?: number;
-			getRow?: (rowIndex: number) => unknown;
-			getRowData?: (rowIndex: number) => unknown;
-			getItemAtRow?: (rowIndex: number) => unknown;
-			getItemID?: (rowIndex: number) => number;
-		};
-		getSelectedCollection?: () => { getChildItems: () => Zotero.Item[] };
-	};
-	const sortedItems = pane.getSortedItems?.();
-	if (sortedItems?.length) {
-		return getRegularItems(normalizeItems(sortedItems));
-	}
-
-	const itemsView = pane.itemsView;
-	const rowCount = itemsView?.rowCount ?? itemsView?._rowCount;
-	if (typeof rowCount == "number" && rowCount > 0) {
-		const items: Zotero.Item[] = [];
-		for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-			const row =
-				itemsView.getRow?.(rowIndex) ??
-				itemsView.getRowData?.(rowIndex) ??
-				itemsView.getItemAtRow?.(rowIndex);
-			const item =
-				getItemFromViewRow(row) ??
-				(typeof itemsView.getItemID == "function"
-					? getItemFromID(itemsView.getItemID(rowIndex))
-					: undefined);
-			if (item?.isRegularItem()) {
-				items.push(item);
-			}
-		}
-		if (items.length) {
-			return items;
-		}
-	}
-
-	const selectedCollection = pane.getSelectedCollection?.();
-	if (selectedCollection) {
-		return getRegularItems(selectedCollection.getChildItems());
-	}
-
-	return getSelectedItems();
+	return resolveCurrentViewItems(
+		getActiveZoteroPane(),
+		(itemIDs) => Zotero.Items.get(itemIDs),
+		getSelectedItems(),
+	);
 }
 
 function getItemTitle(item: Zotero.Item) {
@@ -377,6 +300,7 @@ export default class ZoteroReadingList {
 	fileOpenedListenerID?: string;
 	itemTreeReadStatusColumnId?: string | false;
 	itemTreeReadPriorityColumnId?: string | false;
+	itemTreeItemKeyColumnId?: string | false;
 	readingBoardButton?: Element;
 	readingBoardPanel?: HTMLElement;
 	readingBoardButtonRetryIDs: number[] = [];
@@ -392,6 +316,7 @@ export default class ZoteroReadingList {
 
 		this.addReadStatusColumn();
 		this.addReadPriorityColumn();
+		this.addItemKeyColumn();
 		this.addPreferencesMenu();
 		this.addRightClickMenuPopup();
 		this.addReadingBoardMenu();
@@ -414,6 +339,7 @@ export default class ZoteroReadingList {
 	public unload() {
 		this.removeReadStatusColumn();
 		this.removeReadPriorityColumn();
+		this.removeItemKeyColumn();
 		this.removePreferenceMenu();
 		this.removeRightClickMenu();
 		this.removeReadingBoardMenu();
@@ -713,6 +639,48 @@ export default class ZoteroReadingList {
 		}
 	}
 
+	addItemKeyColumn() {
+		this.itemTreeItemKeyColumnId = Zotero.ItemTreeManager.registerColumn({
+			dataKey: `${config.addonID.replaceAll("-", "_").replaceAll("@", "_at_").replaceAll(".", "_")}_${ITEM_KEY_COLUMN_ID}`,
+			label: getString("item-key"),
+			pluginID: "",
+			dataProvider: (item: Zotero.Item, dataKey: string) => {
+				return item.isRegularItem() ? item.key : "";
+			},
+			renderCell: function (
+				index: number,
+				data: string,
+				column: { className: string },
+			) {
+				const text = document.createElementNS(
+					"http://www.w3.org/1999/xhtml",
+					"span",
+				);
+				text.className = "cell-text";
+				text.innerText = data;
+
+				const cell = document.createElementNS(
+					"http://www.w3.org/1999/xhtml",
+					"span",
+				);
+				cell.className = `cell ${column.className}`;
+				cell.append(text);
+
+				return cell;
+			},
+			zoteroPersist: ["width", "hidden", "sortDirection"],
+		});
+	}
+
+	removeItemKeyColumn() {
+		if (this.itemTreeItemKeyColumnId) {
+			Zotero.ItemTreeManager.unregisterColumn(
+				this.itemTreeItemKeyColumnId,
+			);
+			this.itemTreeItemKeyColumnId = undefined;
+		}
+	}
+
 	addPreferencesMenu() {
 		const prefOptions = {
 			pluginID: config.addonID,
@@ -730,7 +698,7 @@ export default class ZoteroReadingList {
 
 	addRightClickMenuPopup() {
 		ztoolkit.Menu.register("item", {
-			id: "zotero-reading-list-right-click-item-menu",
+			id: `${config.addonRef}-right-click-item-menu`,
 			tag: "menu",
 			label: getString("menupopup-label"),
 			children: [
@@ -755,7 +723,7 @@ export default class ZoteroReadingList {
 			},
 		});
 		ztoolkit.Menu.register("item", {
-			id: "zotero-reading-list-right-click-priority-menu",
+			id: `${config.addonRef}-right-click-priority-menu`,
 			tag: "menu",
 			label: getString("priority"),
 			children: [
@@ -779,13 +747,23 @@ export default class ZoteroReadingList {
 				return getSelectedItems().length > 0;
 			},
 		});
+		ztoolkit.Menu.register("item", {
+			id: `${config.addonRef}-copy-item-link-menu`,
+			tag: "menuitem",
+			label: getString("copy-item-link"),
+			commandListener: (event) => void copySelectedItemLinks(),
+			getVisibility: (element, event) => {
+				return getSelectedItems().length > 0;
+			},
+		});
 	}
 
 	removeRightClickMenu() {
-		ztoolkit.Menu.unregister("zotero-reading-list-right-click-item-menu");
+		ztoolkit.Menu.unregister(`${config.addonRef}-right-click-item-menu`);
 		ztoolkit.Menu.unregister(
-			"zotero-reading-list-right-click-priority-menu",
+			`${config.addonRef}-right-click-priority-menu`,
 		);
+		ztoolkit.Menu.unregister(`${config.addonRef}-copy-item-link-menu`);
 	}
 
 	addReadingBoardMenu() {
@@ -883,7 +861,7 @@ export default class ZoteroReadingList {
 				"http://www.w3.org/1999/xhtml",
 				"div",
 			);
-			panel.id = "zotero-reading-list-board-panel";
+			panel.id = `${config.addonRef}-board-panel`;
 			panel.className = "reading-board-panel";
 			document.documentElement.append(panel);
 			this.readingBoardPanel = panel;
@@ -1289,7 +1267,7 @@ export default class ZoteroReadingList {
 				},
 			},
 			["item"],
-			"zotero-reading-list",
+			config.addonRef,
 			1,
 		);
 	}
@@ -1336,7 +1314,7 @@ export default class ZoteroReadingList {
 				},
 			},
 			["file"],
-			"zotero-reading-list",
+			config.addonRef,
 			1,
 		);
 	}
@@ -1349,6 +1327,19 @@ export default class ZoteroReadingList {
 	}
 
 	keyboardEventHandler = (keyboardEvent: KeyboardEvent) => {
+		if (
+			keyboardEvent.metaKey &&
+			keyboardEvent.shiftKey &&
+			!keyboardEvent.ctrlKey &&
+			!keyboardEvent.altKey &&
+			keyboardEvent.code == "KeyC"
+		) {
+			void copySelectedItemLinks();
+			keyboardEvent.preventDefault();
+			keyboardEvent.stopPropagation();
+			return;
+		}
+
 		// Check modifiers - want Alt+{1,2,3,4,5} to label the currently selected items
 		// Or Alt+0 to clear the current read status
 		// Need to use keyboard event `code` instead of `key` to support different keyboard

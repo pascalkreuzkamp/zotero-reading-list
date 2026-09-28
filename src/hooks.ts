@@ -2,6 +2,7 @@ import ZoteroReadingList from "./modules/overlay";
 import { config } from "../package.json";
 import { initLocale } from "./utils/locale";
 import { createZToolkit } from "./utils/ztoolkit";
+import { migrateLegacyPreferences } from "./utils/prefs";
 
 let zoteroReadingList: ZoteroReadingList;
 
@@ -20,6 +21,7 @@ async function onStartup() {
 	}
 
 	initLocale();
+	migrateLegacyPreferences();
 
 	await onMainWindowLoad(window);
 }
